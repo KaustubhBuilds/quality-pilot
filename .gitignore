@@ -1,0 +1,28 @@
+# Virtual environment — never commit
+venv/
+
+# Environment variables — contains secrets
+.env
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Allure report output
+allure-results/
+allure-report/
+
+# Ruff and black cache
+.ruff_cache/
+
+# macOS system files
+.DS_Store
+
+# VS Code local settings
+.vscode/launch.json
+
+# Test artifacts
+screenshots/
+videos/
