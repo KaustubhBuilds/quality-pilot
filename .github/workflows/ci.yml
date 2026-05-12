@@ -1,0 +1,82 @@
+name: QualityPilot CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:15
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+          POSTGRES_DB: quality_pilot_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      odoo:
+        image: odoo:17
+        env:
+          HOST: db
+          USER: odoo
+          PASSWORD: odoo
+        ports:
+          - 8069:8069
+        options: >-
+          --health-cmd "curl -f http://localhost:8069/web/login || exit 1"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Initialize Odoo database
+        run: |
+          docker run --rm \
+            --network host \
+            -e HOST=localhost \
+            -e USER=odoo \
+            -e PASSWORD=odoo \
+            odoo:17 odoo -i base \
+            --db_host localhost \
+            --db_user odoo \
+            --db_password odoo \
+            --database quality_pilot_db \
+            --stop-after-init
+
+      - name: Run smoke tests
+        run: pytest -m smoke --alluredir=allure-results
+        env:
+          BASE_URL: http://localhost:8069
+          ODOO_DB: quality_pilot_db
+          ODOO_USER: admin
+          ODOO_PASSWORD: admin
+          HEADLESS: "true"
+
+      - name: Upload Allure results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-results
+          path: allure-results/
