@@ -32,10 +32,10 @@ jobs:
         ports:
           - 8069:8069
         options: >-
-          --health-cmd "curl -f http://localhost:8069/web/login || exit 1"
+          --health-cmd "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8069/web/login')\" || exit 1"
           --health-interval 30s
           --health-timeout 10s
-          --health-retries 10
+          --health-retries 15
 
     steps:
       - uses: actions/checkout@v4
