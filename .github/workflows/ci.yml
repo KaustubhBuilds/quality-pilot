@@ -10,33 +10,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      db:
-        image: postgres:15
-        env:
-          POSTGRES_USER: odoo
-          POSTGRES_PASSWORD: odoo
-          POSTGRES_DB: quality_pilot_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      odoo:
-        image: odoo:17
-        env:
-          HOST: db
-          USER: odoo
-          PASSWORD: odoo
-        ports:
-          - 8069:8069
-        options: >-
-          --health-cmd "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8069/web/login')\" || exit 1"
-          --health-interval 30s
-          --health-timeout 10s
-          --health-retries 15
-
     steps:
       - uses: actions/checkout@v4
 
@@ -51,19 +24,36 @@ jobs:
       - name: Install Playwright browsers
         run: playwright install chromium --with-deps
 
+      - name: Start Odoo with Docker Compose
+        run: docker compose up -d
+
       - name: Initialize Odoo database
         run: |
-          docker run --rm \
-            --network host \
-            -e HOST=localhost \
-            -e USER=odoo \
-            -e PASSWORD=odoo \
-            odoo:17 odoo -i base \
-            --db_host localhost \
+          sleep 30
+          docker compose run --rm odoo odoo -i base \
+            --db_host db \
             --db_user odoo \
             --db_password odoo \
             --database quality_pilot_db \
             --stop-after-init
+
+      - name: Wait for Odoo to be ready
+        run: |
+          echo "Waiting for Odoo..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8069/web/login > /dev/null; then
+              echo "Odoo is ready"
+              break
+            fi
+            echo "Attempt $i - waiting 10 seconds..."
+            sleep 10
+          done
+
+      - name: Restart Odoo after init
+        run: docker compose restart odoo
+
+      - name: Wait for Odoo restart
+        run: sleep 30
 
       - name: Run smoke tests
         run: pytest -m smoke --alluredir=allure-results
