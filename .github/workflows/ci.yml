@@ -30,7 +30,7 @@ jobs:
       - name: Initialize Odoo database
         run: |
           sleep 30
-          docker compose run --rm odoo odoo -i base \
+          docker compose run --rm odoo odoo -i base,sale_management,crm,stock,contacts \
             --db_host db \
             --db_user odoo \
             --db_password odoo \
